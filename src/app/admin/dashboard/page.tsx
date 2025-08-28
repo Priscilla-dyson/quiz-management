@@ -14,7 +14,7 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's an overview of your quiz management system.</p>
+          <p className="text-muted-foreground">{`Welcome back! Here's an overview of your quiz management system.`}</p>
         </div>
 
         {/* Quick Stats Cards */}
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Sarah Johnson completed "JavaScript Basics"</p>
+                    <p className="text-sm font-medium">{`Sarah Johnson completed "JavaScript Basics"`}</p>
                     <p className="text-xs text-muted-foreground">Score: 85% • 2 minutes ago</p>
                   </div>
                   <Badge variant="secondary">Pass</Badge>
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
                     <Clock className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Mike Chen started "React Components Quiz"</p>
+                    <p className="text-sm font-medium">{`Mike Chen started "React Components Quiz`}</p>
                     <p className="text-xs text-muted-foreground">In progress • 5 minutes ago</p>
                   </div>
                   <Badge variant="outline">Active</Badge>
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
                     <AlertCircle className="h-4 w-4 text-red-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Emma Davis failed "Advanced CSS"</p>
+                    <p className="text-sm font-medium">{`Emma Davis failed "Advanced CSS"`}</p>
                     <p className="text-xs text-muted-foreground">Score: 45% • 12 minutes ago</p>
                   </div>
                   <Badge variant="destructive">Fail</Badge>
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
                     <BookOpen className="h-4 w-4 text-purple-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">New quiz "Database Design" was published</p>
+                    <p className="text-sm font-medium">{`New quiz "Database Design" was published`}</p>
                     <p className="text-xs text-muted-foreground">By Admin • 1 hour ago</p>
                   </div>
                   <Badge variant="secondary">Published</Badge>

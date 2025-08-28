@@ -297,8 +297,8 @@ export default function ManageQuizzes() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Are you sure you want to delete "{quiz.title}"? This action cannot be undone. All
-                                      quiz attempts and results will be permanently lost.
+                                      {`Are you sure you want to delete "${quiz.title}"? This action cannot be undone. All
+                                      quiz attempts and results will be permanently lost.`}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>

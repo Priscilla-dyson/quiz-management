@@ -195,7 +195,7 @@ export default function CreateQuiz() {
             <CardContent>
               {quizData.questions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>No questions added yet. Click "Add Question" to get started.</p>
+                  <p>{`No questions added yet. Click "Add Question" to get started.`}</p>
                 </div>
               ) : (
                 <div className="space-y-6">
