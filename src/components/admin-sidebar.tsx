@@ -33,11 +33,7 @@ const navigation = [
     href: "/admin/students",
     icon: Users,
   },
-  {
-    name: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
+  
 ]
 
 export function AdminSidebar() {

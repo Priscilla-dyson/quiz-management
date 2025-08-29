@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,93 +24,28 @@ interface StudentAttempt {
   totalQuestions: number
 }
 
-// Mock data - in a real app, this would come from an API
-const mockAttempts: StudentAttempt[] = [
-  {
-    id: "1",
-    studentName: "Sarah Johnson",
-    studentEmail: "sarah.j@email.com",
-    quizTitle: "JavaScript Basics",
-    quizId: "1",
-    score: 85,
-    result: "pass",
-    date: "2024-02-08",
-    duration: 23,
-    questionsCorrect: 13,
-    totalQuestions: 15,
-  },
-  {
-    id: "2",
-    studentName: "Mike Chen",
-    studentEmail: "mike.c@email.com",
-    quizTitle: "React Components",
-    quizId: "2",
-    score: 92,
-    result: "pass",
-    date: "2024-02-08",
-    duration: 18,
-    questionsCorrect: 11,
-    totalQuestions: 12,
-  },
-  {
-    id: "3",
-    studentName: "Emma Davis",
-    studentEmail: "emma.d@email.com",
-    quizTitle: "Advanced CSS",
-    quizId: "3",
-    score: 45,
-    result: "fail",
-    date: "2024-02-07",
-    duration: 35,
-    questionsCorrect: 9,
-    totalQuestions: 20,
-  },
-  {
-    id: "4",
-    studentName: "Alex Johnson",
-    studentEmail: "alex.j@email.com",
-    quizTitle: "JavaScript Basics",
-    quizId: "1",
-    score: 78,
-    result: "pass",
-    date: "2024-02-07",
-    duration: 28,
-    questionsCorrect: 12,
-    totalQuestions: 15,
-  },
-  {
-    id: "5",
-    studentName: "Lisa Wang",
-    studentEmail: "lisa.w@email.com",
-    quizTitle: "Node.js Fundamentals",
-    quizId: "5",
-    score: 88,
-    result: "pass",
-    date: "2024-02-06",
-    duration: 32,
-    questionsCorrect: 16,
-    totalQuestions: 18,
-  },
-  {
-    id: "6",
-    studentName: "David Brown",
-    studentEmail: "david.b@email.com",
-    quizTitle: "React Components",
-    quizId: "2",
-    score: 67,
-    result: "fail",
-    date: "2024-02-06",
-    duration: 25,
-    questionsCorrect: 8,
-    totalQuestions: 12,
-  },
-]
-
 export default function AdminResults() {
-  const [attempts, setAttempts] = useState<StudentAttempt[]>(mockAttempts)
+  const [attempts, setAttempts] = useState<StudentAttempt[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [quizFilter, setQuizFilter] = useState<string>("all")
   const [resultFilter, setResultFilter] = useState<string>("all")
+
+  useEffect(() => {
+    const fetchAttempts = async () => {
+      try {
+        const res = await fetch("/api/attempts")
+        if (!res.ok) throw new Error("Failed to fetch attempts")
+        const data = await res.json()
+        setAttempts(data)
+      } catch (err) {
+        console.error("Error loading attempts:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAttempts()
+  }, [])
 
   const filteredAttempts = attempts.filter((attempt) => {
     const matchesSearch =
@@ -122,10 +57,11 @@ export default function AdminResults() {
     return matchesSearch && matchesQuiz && matchesResult
   })
 
-  // Calculate analytics
+  // Analytics
   const totalAttempts = attempts.length
-  const passRate = Math.round((attempts.filter((a) => a.result === "pass").length / totalAttempts) * 100)
-  const averageScore = Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts)
+  const passRate =
+    totalAttempts > 0 ? Math.round((attempts.filter((a) => a.result === "pass").length / totalAttempts) * 100) : 0
+  const averageScore = totalAttempts > 0 ? Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts) : 0
   const uniqueStudents = new Set(attempts.map((a) => a.studentEmail)).size
 
   const getResultBadge = (result: "pass" | "fail") => {
@@ -137,9 +73,8 @@ export default function AdminResults() {
   }
 
   const exportResults = () => {
-    // In a real app, this would generate and download a CSV/Excel file
     console.log("Exporting results:", filteredAttempts)
-    alert("Results exported successfully!")
+    alert("Results exported successfully! (TODO: implement CSV/Excel export)")
   }
 
   return (
@@ -241,10 +176,14 @@ export default function AdminResults() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Quizzes</SelectItem>
-                    <SelectItem value="1">JavaScript Basics</SelectItem>
-                    <SelectItem value="2">React Components</SelectItem>
-                    <SelectItem value="3">Advanced CSS</SelectItem>
-                    <SelectItem value="5">Node.js Fundamentals</SelectItem>
+                    {Array.from(new Set(attempts.map((a) => a.quizId))).map((id) => {
+                      const title = attempts.find((a) => a.quizId === id)?.quizTitle || "Untitled Quiz"
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {title}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
                 <Select value={resultFilter} onValueChange={setResultFilter}>
@@ -270,51 +209,55 @@ export default function AdminResults() {
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Quiz</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Result</TableHead>
-                    <TableHead>Questions</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAttempts.length === 0 ? (
+              {loading ? (
+                <div className="text-center p-6 text-muted-foreground">Loading attempts...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No attempts found matching your criteria.
-                      </TableCell>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Quiz</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Result</TableHead>
+                      <TableHead>Questions</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Date</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredAttempts.map((attempt) => (
-                      <TableRow key={attempt.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{attempt.studentName}</div>
-                            <div className="text-sm text-muted-foreground">{attempt.studentEmail}</div>
-                          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAttempts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No attempts found matching your criteria.
                         </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{attempt.quizTitle}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-semibold">{attempt.score}%</div>
-                        </TableCell>
-                        <TableCell>{getResultBadge(attempt.result)}</TableCell>
-                        <TableCell>
-                          {attempt.questionsCorrect}/{attempt.totalQuestions}
-                        </TableCell>
-                        <TableCell>{attempt.duration} min</TableCell>
-                        <TableCell>{new Date(attempt.date).toLocaleDateString()}</TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      filteredAttempts.map((attempt) => (
+                        <TableRow key={attempt.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{attempt.studentName}</div>
+                              <div className="text-sm text-muted-foreground">{attempt.studentEmail}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{attempt.quizTitle}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold">{attempt.score}%</div>
+                          </TableCell>
+                          <TableCell>{getResultBadge(attempt.result)}</TableCell>
+                          <TableCell>
+                            {attempt.questionsCorrect}/{attempt.totalQuestions}
+                          </TableCell>
+                          <TableCell>{attempt.duration} min</TableCell>
+                          <TableCell>{new Date(attempt.date).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </CardContent>
         </Card>

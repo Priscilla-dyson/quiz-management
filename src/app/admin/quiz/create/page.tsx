@@ -37,6 +37,7 @@ export default function CreateQuiz() {
     passingCriteria: 70,
     questions: [],
   })
+  const [loading, setLoading] = useState(false)
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -80,14 +81,12 @@ export default function CreateQuiz() {
       ...prev,
       questions: prev.questions.map((q) => {
         if (q.id !== questionId) return q
-
         if (q.type === "multiple-choice") {
           const correctAnswers = q.correctAnswers.includes(optionIndex)
             ? q.correctAnswers.filter((idx) => idx !== optionIndex)
             : [...q.correctAnswers, optionIndex]
           return { ...q, correctAnswers }
         } else {
-          // True/False - only one correct answer
           return { ...q, correctAnswers: [optionIndex] }
         }
       }),
@@ -102,16 +101,54 @@ export default function CreateQuiz() {
     })
   }
 
+  // --- Save Draft (no API, just console) ---
   const handleSaveQuiz = () => {
-    console.log("Saving quiz:", quizData)
-    // Here you would typically save to a database
-    alert("Quiz saved successfully!")
+    console.log("Draft quiz:", quizData)
+    alert("Draft saved locally (not in DB)")
   }
 
-  const handlePublishQuiz = () => {
-    console.log("Publishing quiz:", quizData)
-    // Here you would typically save and publish to a database
-    alert("Quiz published successfully!")
+  // --- Publish Quiz to backend ---
+  const handlePublishQuiz = async () => {
+    try {
+      setLoading(true)
+
+      // 1. Create Quiz
+      const quizRes = await fetch("/api/quizzes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: quizData.title,
+          description: quizData.description,
+          passMark: quizData.passingCriteria,
+          creatorId: 1, // TODO: replace with logged-in admin ID when auth is ready
+        }),
+      })
+
+      if (!quizRes.ok) throw new Error("Failed to create quiz")
+      const quiz = await quizRes.json()
+
+      // 2. Create Questions for the quiz
+      for (const q of quizData.questions) {
+        await fetch("/api/questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: q.question,
+            options: q.options,
+            answer: q.correctAnswers.map((idx) => q.options[idx]).join(","), // save answers as string
+            quizId: quiz.id,
+          }),
+        })
+      }
+
+      alert("Quiz published successfully!")
+      setQuizData({ title: "", description: "", passingCriteria: 70, questions: [] })
+    } catch (err) {
+      console.error(err)
+      alert("Error publishing quiz. Check console for details.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -134,7 +171,7 @@ export default function CreateQuiz() {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Quiz Basic Information */}
+          {/* Quiz Info */}
           <Card>
             <CardHeader>
               <CardTitle>Quiz Information</CardTitle>
@@ -178,7 +215,7 @@ export default function CreateQuiz() {
             </CardContent>
           </Card>
 
-          {/* Questions Section */}
+          {/* Questions */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -215,7 +252,7 @@ export default function CreateQuiz() {
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {/* Question Type */}
+                        {/* Type */}
                         <div className="space-y-2">
                           <Label>Question Type</Label>
                           <Select
@@ -232,7 +269,7 @@ export default function CreateQuiz() {
                           </Select>
                         </div>
 
-                        {/* Question Text */}
+                        {/* Text */}
                         <div className="space-y-2">
                           <Label>Question Text *</Label>
                           <Textarea
@@ -243,7 +280,7 @@ export default function CreateQuiz() {
                           />
                         </div>
 
-                        {/* Answer Options */}
+                        {/* Options */}
                         <div className="space-y-2">
                           <Label>Answer Options</Label>
                           <div className="space-y-3">
@@ -297,13 +334,13 @@ export default function CreateQuiz() {
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
+          {/* Actions */}
           <div className="flex items-center justify-between pt-6 border-t">
             <div className="text-sm text-muted-foreground">
               {quizData.questions.length} question{quizData.questions.length !== 1 ? "s" : ""} added
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={handleSaveQuiz}>
+              <Button variant="outline" onClick={handleSaveQuiz} disabled={loading}>
                 <Save className="mr-2 h-4 w-4" />
                 Save Draft
               </Button>
@@ -311,7 +348,9 @@ export default function CreateQuiz() {
                 <Eye className="mr-2 h-4 w-4" />
                 Preview
               </Button>
-              <Button onClick={handlePublishQuiz}>Publish Quiz</Button>
+              <Button onClick={handlePublishQuiz} disabled={loading}>
+                {loading ? "Publishing..." : "Publish Quiz"}
+              </Button>
             </div>
           </div>
         </div>

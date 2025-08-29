@@ -55,7 +55,7 @@ export default function AdminDashboard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
           <p className="text-muted-foreground">
-            {Welcome back! Here's an overview of your quiz management system.}
+            {`Welcome back! Here's an overview of your quiz management system.`}
           </p>
         </div>
 
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
                     key={i}
                     className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg"
                   >
-                    <div className={p-2 rounded-full ${a.passed ? "bg-green-100" : "bg-red-100"}}>
+                    <div className={`p-2 rounded-full ${a.passed ? "bg-green-100" : "bg-red-100"}`}>
                       {a.passed ? (
                         <CheckCircle className="h-4 w-4 text-green-600" />
                       ) : (

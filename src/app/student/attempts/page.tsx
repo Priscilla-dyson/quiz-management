@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,9 +12,9 @@ import { Search, Eye, RotateCcw, TrendingUp, Clock, CheckCircle, X } from "lucid
 import Link from "next/link"
 
 interface StudentAttempt {
-  id: string
+  id: number
   quizTitle: string
-  quizId: string
+  quizId: number
   score: number
   result: "pass" | "fail"
   date: string
@@ -24,74 +24,46 @@ interface StudentAttempt {
   passingScore: number
 }
 
-// Mock data - in a real app, this would come from an API for the current student
-const mockAttempts: StudentAttempt[] = [
-  {
-    id: "1",
-    quizTitle: "JavaScript Basics",
-    quizId: "1",
-    score: 78,
-    result: "pass",
-    date: "2024-02-08",
-    duration: 28,
-    questionsCorrect: 12,
-    totalQuestions: 15,
-    passingScore: 70,
-  },
-  {
-    id: "2",
-    quizTitle: "React Components",
-    quizId: "2",
-    score: 82,
-    result: "pass",
-    date: "2024-02-05",
-    duration: 23,
-    questionsCorrect: 10,
-    totalQuestions: 12,
-    passingScore: 75,
-  },
-  {
-    id: "3",
-    quizTitle: "HTML & CSS Basics",
-    quizId: "6",
-    score: 95,
-    result: "pass",
-    date: "2024-02-01",
-    duration: 18,
-    questionsCorrect: 19,
-    totalQuestions: 20,
-    passingScore: 70,
-  },
-  {
-    id: "4",
-    quizTitle: "Database Concepts",
-    quizId: "4",
-    score: 65,
-    result: "fail",
-    date: "2024-01-28",
-    duration: 35,
-    questionsCorrect: 11,
-    totalQuestions: 18,
-    passingScore: 70,
-  },
-  {
-    id: "5",
-    quizTitle: "Advanced CSS",
-    quizId: "3",
-    score: 58,
-    result: "fail",
-    date: "2024-01-25",
-    duration: 40,
-    questionsCorrect: 12,
-    totalQuestions: 20,
-    passingScore: 70,
-  },
-]
-
 export default function StudentAttempts() {
-  const [attempts, setAttempts] = useState<StudentAttempt[]>(mockAttempts)
+  const [attempts, setAttempts] = useState<StudentAttempt[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [resultFilter, setResultFilter] = useState<string>("all")
+
+  const studentId = 1 // TODO: replace with logged-in user id from auth/session
+
+  useEffect(() => {
+    const fetchAttempts = async () => {
+      try {
+        const res = await fetch("/api/attempts")
+        if (!res.ok) throw new Error("Failed to fetch attempts")
+        const data = await res.json()
+
+        // map API -> frontend shape
+        const mapped: StudentAttempt[] = data
+          .filter((a: any) => a.userId === studentId) // only this student
+          .map((a: any) => {
+            const totalQuestions = a.quiz.questions.length
+            return {
+              id: a.id,
+              quizTitle: a.quiz.title,
+              quizId: a.quiz.id,
+              score: a.score,
+              result: a.passed ? "pass" : "fail",
+              date: a.createdAt,
+              duration: a.duration ?? 0, // if you plan to add duration tracking later
+              questionsCorrect: a.score, // your API uses raw "score" (#correct answers)
+              totalQuestions,
+              passingScore: a.quiz.passMark,
+            }
+          })
+
+        setAttempts(mapped)
+      } catch (err) {
+        console.error("Error loading attempts:", err)
+      }
+    }
+    fetchAttempts()
+  }, [])
 
   const filteredAttempts = attempts.filter((attempt) => {
     const matchesSearch = attempt.quizTitle.toLowerCase().includes(searchTerm.toLowerCase())
@@ -99,19 +71,18 @@ export default function StudentAttempts() {
     return matchesSearch && matchesResult
   })
 
-  // Calculate student statistics
+  // Stats
   const totalAttempts = attempts.length
   const passedAttempts = attempts.filter((a) => a.result === "pass").length
-  const averageScore = Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts)
-  const bestScore = Math.max(...attempts.map((a) => a.score))
+  const averageScore = totalAttempts > 0 ? Math.round(attempts.reduce((s, a) => s + a.score, 0) / totalAttempts) : 0
+  const bestScore = totalAttempts > 0 ? Math.max(...attempts.map((a) => a.score)) : 0
 
-  const getResultBadge = (result: "pass" | "fail") => {
-    return result === "pass" ? (
-      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pass</Badge>
+  const getResultBadge = (result: "pass" | "fail") =>
+    result === "pass" ? (
+      <Badge className="bg-green-100 text-green-800">Pass</Badge>
     ) : (
       <Badge variant="destructive">Fail</Badge>
     )
-  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -120,64 +91,56 @@ export default function StudentAttempts() {
       <main className="flex-1 p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Quiz Attempts</h1>
+          <h1 className="text-3xl font-bold mb-2">My Quiz Attempts</h1>
           <p className="text-muted-foreground">Review your quiz history and track your progress</p>
         </div>
 
-        {/* Statistics Cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-full">
-                  <CheckCircle className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{totalAttempts}</div>
-                  <p className="text-sm text-muted-foreground">Total Attempts</p>
-                </div>
+            <CardContent className="pt-6 flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <CheckCircle className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{totalAttempts}</div>
+                <p className="text-sm text-muted-foreground">Total Attempts</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-full">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{passedAttempts}</div>
-                  <p className="text-sm text-muted-foreground">Quizzes Passed</p>
-                </div>
+            <CardContent className="pt-6 flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-full">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{passedAttempts}</div>
+                <p className="text-sm text-muted-foreground">Quizzes Passed</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-full">
-                  <TrendingUp className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{averageScore}%</div>
-                  <p className="text-sm text-muted-foreground">Average Score</p>
-                </div>
+            <CardContent className="pt-6 flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{averageScore}%</div>
+                <p className="text-sm text-muted-foreground">Average Score</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-full">
-                  <TrendingUp className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{bestScore}%</div>
-                  <p className="text-sm text-muted-foreground">Best Score</p>
-                </div>
+            <CardContent className="pt-6 flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-full">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{bestScore}%</div>
+                <p className="text-sm text-muted-foreground">Best Score</p>
               </div>
             </CardContent>
           </Card>
@@ -185,30 +148,26 @@ export default function StudentAttempts() {
 
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search quiz attempts..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Select value={resultFilter} onValueChange={setResultFilter}>
-                <SelectTrigger className="w-full sm:w-[150px]">
-                  <SelectValue placeholder="Filter by result" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Results</SelectItem>
-                  <SelectItem value="pass">Passed</SelectItem>
-                  <SelectItem value="fail">Failed</SelectItem>
-                </SelectContent>
-              </Select>
+          <CardContent className="pt-6 flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search quiz attempts..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
+            <Select value={resultFilter} onValueChange={setResultFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Filter by result" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Results</SelectItem>
+                <SelectItem value="pass">Passed</SelectItem>
+                <SelectItem value="fail">Failed</SelectItem>
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
@@ -247,7 +206,7 @@ export default function StudentAttempts() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{attempt.score}%</span>
+                            <span className="font-semibold">{attempt.score}/{attempt.totalQuestions}</span>
                             <span className="text-sm text-muted-foreground">(need {attempt.passingScore}%)</span>
                           </div>
                         </TableCell>
