@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
@@ -71,6 +72,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22",
