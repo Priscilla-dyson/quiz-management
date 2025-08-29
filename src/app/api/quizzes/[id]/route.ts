@@ -1,28 +1,37 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const id = Number(params.id);
+type Ctx = { params: Promise<{ id: string }> }
+
+export async function GET(_req: Request, ctx: Ctx) {
+  const { id } = await ctx.params
+  const quizId = Number(id)
+
   const quiz = await prisma.quiz.findUnique({
-    where: { id },
+    where: { id: quizId },
     include: { questions: true },
-  });
-  if (!quiz) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(quiz);
+  })
+
+  if (!quiz) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  return NextResponse.json(quiz)
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const id = Number(params.id);
-  const { title, description, passMark } = await req.json();
+export async function PUT(req: Request, ctx: Ctx) {
+  const { id } = await ctx.params
+  const quizId = Number(id)
+
+  const { title, description, passMark } = await req.json()
   const quiz = await prisma.quiz.update({
-    where: { id },
+    where: { id: quizId },
     data: { title, description, passMark },
-  });
-  return NextResponse.json(quiz);
+  })
+  return NextResponse.json(quiz)
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const id = Number(params.id);
-  await prisma.quiz.delete({ where: { id } });
-  return NextResponse.json({ message: "Quiz deleted" });
+export async function DELETE(_req: Request, ctx: Ctx) {
+  const { id } = await ctx.params
+  const quizId = Number(id)
+
+  await prisma.quiz.delete({ where: { id: quizId } })
+  return NextResponse.json({ message: "Quiz deleted" })
 }
