@@ -7,7 +7,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "seed": "ts-node -project tsconfig.json prisma/seed.ts",
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts",
     "prisma-generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "pnpm run prisma:generate && pnpm run prisma:push && pnpm run seed"
