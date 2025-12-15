@@ -1,66 +1,106 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { StudentSidebar } from "@/components/student-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { BookOpen, Clock, CheckCircle, Play, Trophy, TrendingUp } from "lucide-react"
+import { BookOpen, Clock, CheckCircle, X, BarChart3, TrendingUp, Award, Trophy, Play } from "lucide-react"
 import Link from "next/link"
-import { StudentSidebar } from "@/components/student-sidebar"
 
 interface Quiz {
   id: number
   title: string
   description?: string
-  passMark: number
-  questions: { id: number }[]
+  passingCriteria: number
+  questions: { id: number; text: string; options: string[] }[]
   attempts: { score: number; passed: boolean; userId: number }[]
 }
 
 interface Attempt {
   id: number
-  quiz: { title: string }
+  quiz: { title: string; passingCriteria: number }
   score: number
   passed: boolean
   createdAt: string
   duration?: number
 }
 
+interface User {
+  id: number
+  name: string
+  email: string
+  role: string
+}
+
 export default function StudentDashboard() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [attempts, setAttempts] = useState<Attempt[]>([])
-  const studentId = 1 // TODO: replace with logged-in user ID from auth/session
-  const studentName = "Student" // TODO: replace with real user info
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchData() {
       try {
-        const [quizRes, attemptRes] = await Promise.all([
-          fetch("/api/quizzes"),
-          fetch("/api/attempts"),
-        ])
+        // Get current user session
+        const sessionRes = await fetch('/api/auth/session')
+        const sessionData = await sessionRes.json()
+        if (!sessionData.user) {
+          router.push('/')
+          return
+        }
+        setUser(sessionData.user)
 
-        if (!quizRes.ok || !attemptRes.ok) throw new Error("Failed to fetch data")
+        // Fetch quizzes
+        const quizzesRes = await fetch('/api/quizzes')
+        const quizzesData = await quizzesRes.json()
+        setQuizzes(quizzesData)
 
-        const quizData: Quiz[] = await quizRes.json()
-        const attemptData: Attempt[] = await attemptRes.json()
-
-        setQuizzes(quizData)
-        // filter attempts for current student
-        setAttempts(attemptData.filter(a => a.quiz && a.score !== undefined && a.id && a))
-      } catch (err) {
-        console.error("Error loading dashboard:", err)
+        // Fetch attempts
+        const attemptsRes = await fetch('/api/attempts')
+        const attemptsData = await attemptsRes.json()
+        setAttempts(attemptsData)
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+      } finally {
+        setLoading(false)
       }
     }
+
     fetchData()
   }, [])
 
-  const studentAttempts = attempts.filter(a => a) // if filtering by userId, add here
-  const completedQuizIds = new Set(studentAttempts.map(a => a.quiz.title))
-  const completedQuizzes = quizzes.filter(q =>
-    q.attempts.some(a => a.userId === studentId)
-  ).length
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <StudentSidebar />
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="text-center py-12">
+            <p>Loading dashboard...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <StudentSidebar />
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="text-center py-12">
+            <p>Please log in to view your dashboard.</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  const studentAttempts = attempts
+  const completedQuizzes = studentAttempts.length
 
   const averageScore =
     studentAttempts.length > 0
@@ -81,7 +121,7 @@ export default function StudentDashboard() {
         {/* Welcome Header */}
         <div className="mb-8">
           <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg p-6 mb-6">
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {studentName}!</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {user.name}!</h1>
             <p className="text-muted-foreground">
               Ready to continue your learning journey? Check out the available quizzes below.
             </p>
@@ -146,8 +186,8 @@ export default function StudentDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {quizzes.map((quiz) => {
-                    const hasAttempt = quiz.attempts.some(a => a.userId === studentId)
-                    const lastAttempt = quiz.attempts.findLast(a => a.userId === studentId)
+                    const hasAttempt = studentAttempts.some(a => a.quiz.title === quiz.title)
+                    const lastAttempt = studentAttempts.findLast(a => a.quiz.title === quiz.title)
 
                     return (
                       <Card key={quiz.id} className="border-2 hover:border-primary/20 transition-colors">
@@ -164,7 +204,7 @@ export default function StudentDashboard() {
                                   <BookOpen className="h-4 w-4" />
                                   {quiz.questions.length} questions
                                 </div>
-                                <div>Passing: {quiz.passMark}%</div>
+                                <div>Passing: {quiz.passingCriteria}%</div>
                               </div>
                             </div>
                             <div className="flex flex-col items-end gap-2">

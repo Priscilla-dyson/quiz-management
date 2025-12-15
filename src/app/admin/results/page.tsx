@@ -37,7 +37,29 @@ export default function AdminResults() {
         const res = await fetch("/api/attempts")
         if (!res.ok) throw new Error("Failed to fetch attempts")
         const data = await res.json()
-        setAttempts(data)
+
+        // Map API (Prisma) shape -> StudentAttempt DTO for this page
+        const mapped: StudentAttempt[] = data.map((a: any) => {
+          const totalQuestions = a.quiz?.questions?.length ?? 0
+          const studentName = a.user?.email?.split("@")[0] ?? "Student"
+
+          return {
+            id: String(a.id),
+            studentName,
+            studentEmail: a.user?.email ?? "",
+            quizTitle: a.quiz?.title ?? "Untitled Quiz",
+            quizId: String(a.quiz?.id ?? a.quizId),
+            score: a.score,
+            result: a.passed ? "pass" : "fail",
+            date: a.createdAt,
+            // duration is not tracked yet in DB; keep 0 so UI works
+            duration: a.duration ?? 0,
+            questionsCorrect: a.score,
+            totalQuestions,
+          }
+        })
+
+        setAttempts(mapped)
       } catch (err) {
         console.error("Error loading attempts:", err)
       } finally {

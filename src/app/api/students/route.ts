@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-// GET /api/students
+// GET /api/students - Fetch all users with role=STUDENT and basic performance stats
 export async function GET() {
   try {
     const students = await prisma.user.findMany({
@@ -9,35 +9,49 @@ export async function GET() {
       include: {
         attempts: {
           include: {
-            quiz: true,
+            quiz: {
+              include: {
+                questions: true,
+              },
+            },
           },
         },
       },
-      orderBy: { createdAt: "desc" },
     })
 
-    const formatted = students.map((s) => {
-      const totalQuizzes = s.attempts.length
-      const averageScore =
-        totalQuizzes > 0
-          ? Math.round(s.attempts.reduce((sum, a) => sum + a.score, 0) / totalQuizzes)
-          : 0
+    const result = students.map((u: typeof students[number]) => {
+      const totalQuizzes = u.attempts.length
+
+      let averageScore = 0
+      if (totalQuizzes > 0) {
+        const totalPercentage = u.attempts.reduce((sum: number, attempt: typeof u.attempts[number]) => {
+          const questionCount = attempt.quiz?.questions?.length ?? 0
+          if (questionCount === 0) return sum
+          const percentage = (attempt.score / questionCount) * 100
+          return sum + percentage
+        }, 0)
+        averageScore = Math.round(totalPercentage / totalQuizzes)
+      }
+
+      const lastAttempt = u.attempts[0]
+      const lastActivity = lastAttempt?.createdAt ?? u.createdAt
 
       return {
-        id: s.id,
-        name: s.email.split("@")[0], // no name column in schema, so fallback to email prefix
-        email: s.email,
-        joinDate: s.createdAt,
+        id: String(u.id),
+        name: u.email.split("@")[0],
+        email: u.email,
+        phone: undefined,
+        joinDate: u.createdAt,
         totalQuizzes,
         averageScore,
-        status: s.attempts.length > 0 ? "Active" : "Inactive",
-        lastActivity: s.updatedAt,
+        status: totalQuizzes > 0 ? "Active" : "Inactive",
+        lastActivity,
       }
     })
 
-    return NextResponse.json(formatted)
-  } catch (err) {
-    console.error("Error fetching students:", err)
-    return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 })
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error("Error fetching students:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

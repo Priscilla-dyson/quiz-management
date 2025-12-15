@@ -137,8 +137,6 @@ export default function StudentsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline">Filter</Button>
-            <Button>Add Student</Button>
           </div>
 
           {/* Students Table */}

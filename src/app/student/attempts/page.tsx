@@ -1,88 +1,100 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { StudentSidebar } from "@/components/student-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { StudentSidebar } from "@/components/student-sidebar"
-import { Search, Eye, RotateCcw, TrendingUp, Clock, CheckCircle, X } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Search, Clock, BookOpen, CheckCircle, X, Eye } from "lucide-react"
 import Link from "next/link"
 
-interface StudentAttempt {
+interface Attempt {
   id: number
-  quizTitle: string
-  quizId: number
+  quiz: {
+    id: number
+    title: string
+    description?: string
+    passingCriteria: number
+    questions: { id: number }[]
+  }
   score: number
-  result: "pass" | "fail"
-  date: string
-  duration: number
-  questionsCorrect: number
-  totalQuestions: number
-  passingScore: number
+  passed: boolean
+  createdAt: string
+  duration?: number
 }
 
-export default function StudentAttempts() {
-  const [attempts, setAttempts] = useState<StudentAttempt[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [resultFilter, setResultFilter] = useState<string>("all")
+interface User {
+  id: number
+  name: string
+  email: string
+  role: string
+}
 
-  const studentId = 1 // TODO: replace with logged-in user id from auth/session
+export default function StudentAttemptsPage() {
+  const [attempts, setAttempts] = useState<Attempt[]>([])
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter()
 
   useEffect(() => {
-    const fetchAttempts = async () => {
+    async function fetchData() {
       try {
-        const res = await fetch("/api/attempts")
-        if (!res.ok) throw new Error("Failed to fetch attempts")
-        const data = await res.json()
+        // Get current user session
+        const sessionRes = await fetch('/api/auth/session')
+        const sessionData = await sessionRes.json()
+        if (!sessionData.user) {
+          router.push('/')
+          return
+        }
+        setUser(sessionData.user)
 
-        // map API -> frontend shape
-        const mapped: StudentAttempt[] = data
-          .filter((a: any) => a.userId === studentId) // only this student
-          .map((a: any) => {
-            const totalQuestions = a.quiz.questions.length
-            return {
-              id: a.id,
-              quizTitle: a.quiz.title,
-              quizId: a.quiz.id,
-              score: a.score,
-              result: a.passed ? "pass" : "fail",
-              date: a.createdAt,
-              duration: a.duration ?? 0, // if you plan to add duration tracking later
-              questionsCorrect: a.score, // your API uses raw "score" (#correct answers)
-              totalQuestions,
-              passingScore: a.quiz.passMark,
-            }
-          })
-
-        setAttempts(mapped)
-      } catch (err) {
-        console.error("Error loading attempts:", err)
+        // Fetch attempts
+        const attemptsRes = await fetch('/api/attempts')
+        if (!attemptsRes.ok) throw new Error("Failed to fetch attempts")
+        const attemptsData = await attemptsRes.json()
+        setAttempts(attemptsData)
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+      } finally {
+        setLoading(false)
       }
     }
-    fetchAttempts()
+
+    fetchData()
   }, [])
 
-  const filteredAttempts = attempts.filter((attempt) => {
-    const matchesSearch = attempt.quizTitle.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesResult = resultFilter === "all" || attempt.result === resultFilter
-    return matchesSearch && matchesResult
-  })
+  const filteredAttempts = attempts.filter(attempt =>
+    attempt.quiz.title.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
-  // Stats
-  const totalAttempts = attempts.length
-  const passedAttempts = attempts.filter((a) => a.result === "pass").length
-  const averageScore = totalAttempts > 0 ? Math.round(attempts.reduce((s, a) => s + a.score, 0) / totalAttempts) : 0
-  const bestScore = totalAttempts > 0 ? Math.max(...attempts.map((a) => a.score)) : 0
-
-  const getResultBadge = (result: "pass" | "fail") =>
-    result === "pass" ? (
-      <Badge className="bg-green-100 text-green-800">Pass</Badge>
-    ) : (
-      <Badge variant="destructive">Fail</Badge>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <StudentSidebar />
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="text-center py-12">
+            <p>Loading attempts...</p>
+          </div>
+        </main>
+      </div>
     )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <StudentSidebar />
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="text-center py-12">
+            <p>Please log in to view your attempts.</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -91,165 +103,97 @@ export default function StudentAttempts() {
       <main className="flex-1 p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">My Quiz Attempts</h1>
-          <p className="text-muted-foreground">Review your quiz history and track your progress</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Quiz Attempts</h1>
+          <p className="text-muted-foreground">Review your quiz history and performance</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-6 flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-full">
-                <CheckCircle className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{totalAttempts}</div>
-                <p className="text-sm text-muted-foreground">Total Attempts</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6 flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-full">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{passedAttempts}</div>
-                <p className="text-sm text-muted-foreground">Quizzes Passed</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6 flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{averageScore}%</div>
-                <p className="text-sm text-muted-foreground">Average Score</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6 flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-full">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{bestScore}%</div>
-                <p className="text-sm text-muted-foreground">Best Score</p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Search */}
+        <div className="mb-8">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search attempts..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="pt-6 flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search quiz attempts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={resultFilter} onValueChange={setResultFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]">
-                <SelectValue placeholder="Filter by result" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Results</SelectItem>
-                <SelectItem value="pass">Passed</SelectItem>
-                <SelectItem value="fail">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Attempts Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quiz History ({filteredAttempts.length})</CardTitle>
-            <CardDescription>Your complete quiz attempt history with detailed results</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Quiz Title</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Result</TableHead>
-                    <TableHead>Questions</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAttempts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No quiz attempts found matching your criteria.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredAttempts.map((attempt) => (
-                      <TableRow key={attempt.id}>
-                        <TableCell>
-                          <div className="font-medium">{attempt.quizTitle}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{attempt.score}/{attempt.totalQuestions}</span>
-                            <span className="text-sm text-muted-foreground">(need {attempt.passingScore}%)</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getResultBadge(attempt.result)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {attempt.result === "pass" ? (
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <X className="h-4 w-4 text-red-600" />
-                            )}
-                            {attempt.questionsCorrect}/{attempt.totalQuestions}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            {attempt.duration} min
-                          </div>
-                        </TableCell>
-                        <TableCell>{new Date(attempt.date).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button asChild variant="outline" size="sm">
-                              <Link href={`/student/quiz/${attempt.quizId}/results/${attempt.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button asChild variant="outline" size="sm">
-                              <Link href={`/student/quiz/${attempt.quizId}`}>
-                                <RotateCcw className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Attempts List */}
+        {filteredAttempts.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  {attempts.length === 0 ? "You haven't attempted any quizzes yet." : "No attempts found matching your search."}
+                </p>
+                <Button asChild className="mt-4">
+                  <Link href="/student/quizzes">
+                    Browse Quizzes
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredAttempts.map((attempt) => (
+              <Card key={attempt.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-lg">{attempt.quiz.title}</h3>
+                        {attempt.passed ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <X className="h-5 w-5 text-red-600" />
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                        {attempt.quiz.description || "No description available"}
+                      </p>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <BookOpen className="h-4 w-4" />
+                          {attempt.quiz.questions?.length || 0} questions
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {attempt.duration ? `${attempt.duration} min` : "N/A"}
+                        </div>
+                        <div>
+                          Passing: {attempt.quiz.passingCriteria}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge variant={attempt.passed ? "default" : "destructive"} className="text-sm">
+                        {attempt.passed ? "PASSED" : "FAILED"}
+                      </Badge>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">{attempt.score}</div>
+                        <div className="text-xs text-muted-foreground">Score</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Attempted on {new Date(attempt.createdAt).toLocaleDateString()}
+                    </div>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/student/quiz/${attempt.quiz.id}/results/${attempt.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Results
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )

@@ -1,12 +1,50 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BookOpen, Users, BarChart3, Plus, Clock, CheckCircle, AlertCircle, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { AdminSidebar } from "@/components/admin-sidebar"
+
+interface User {
+  id: number
+  name: string
+  email: string
+  role: string
+}
+
+interface Quiz {
+  id: number
+  title: string
+  description?: string
+  passingCriteria: number
+  createdAt: string
+  questions: { id: number }[]
+  attempts: { id: number; score: number; passed: boolean; userId: number }[]
+}
+
+interface Attempt {
+  id: number
+  score: number
+  passed: boolean
+  createdAt: string
+  user: { email: string }
+  quiz: { title: string }
+}
+
+interface Activity {
+  type: 'quiz_created' | 'quiz_attempt'
+  title: string
+  description: string
+  timestamp: string
+  icon: React.ReactNode
+  color: string
+  badge?: string
+  badgeVariant?: 'secondary' | 'destructive'
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -15,36 +53,121 @@ export default function AdminDashboard() {
     students: 0,
     attempts: 0,
   })
-  const [recent, setRecent] = useState<any[]>([])
+  const [recent, setRecent] = useState<Activity[]>([])
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const quizzesRes = await fetch("/api/quizzes")
-        const quizzes = await quizzesRes.json()
+        // Get current user session
+        const sessionRes = await fetch('/api/auth/session')
+        const sessionData = await sessionRes.json()
+        if (!sessionData.user || sessionData.user.role !== 'ADMIN') {
+          router.push('/')
+          return
+        }
+        setUser(sessionData.user)
 
-        const usersRes = await fetch("/api/users")
-        const users = await usersRes.json()
+        // Fetch quizzes
+        const quizzesRes = await fetch('/api/quizzes')
+        const quizzesData: Quiz[] = await quizzesRes.json()
 
-        const attemptsRes = await fetch("/api/attempts")
-        const attempts = await attemptsRes.json()
+        // Fetch attempts
+        const attemptsRes = await fetch('/api/attempts')
+        const attemptsData: Attempt[] = await attemptsRes.json()
+
+        // Calculate stats
+        const totalQuizzes = quizzesData.length
+        const activeQuizzes = quizzesData.filter(q => q.questions.length > 0).length
+        const totalAttempts = attemptsData.length
+        const studentEmails = new Set(attemptsData.map(a => a.user.email))
+        const totalStudents = studentEmails.size
 
         setStats({
-          quizzes: quizzes.length,
-          activeQuizzes: quizzes.filter((q: any) => q.questions.length > 0).length,
-          students: users.filter((u: any) => u.role === "STUDENT").length,
-          attempts: attempts.length,
+          quizzes: totalQuizzes,
+          activeQuizzes,
+          students: totalStudents,
+          attempts: totalAttempts,
         })
 
-        // latest 5 attempts
-        setRecent(attempts.slice(-5).reverse())
-      } catch (err) {
-        console.error("Error loading dashboard:", err)
+        // Create comprehensive recent activities
+        const activities: any[] = []
+        
+        // Add recent quiz creations
+        quizzesData
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 3)
+          .forEach(quiz => {
+            activities.push({
+              type: 'quiz_created',
+              title: `Quiz "${quiz.title}" created`,
+              description: `${quiz.questions.length} questions`,
+              timestamp: quiz.createdAt,
+              icon: <BookOpen className="h-4 w-4 text-blue-600" />,
+              color: 'bg-blue-100'
+            })
+          })
+        
+        // Add recent attempts
+        attemptsData
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5)
+          .forEach(attempt => {
+            activities.push({
+              type: 'quiz_attempt',
+              title: `${attempt.user?.email} ${attempt.passed ? 'passed' : 'failed'} "${attempt.quiz?.title}"`,
+              description: `Score: ${attempt.score}%`,
+              timestamp: attempt.createdAt,
+              icon: attempt.passed ? <CheckCircle className="h-4 w-4 text-green-600" /> : <AlertCircle className="h-4 w-4 text-red-600" />,
+              color: attempt.passed ? 'bg-green-100' : 'bg-red-100',
+              badge: attempt.passed ? 'Pass' : 'Fail',
+              badgeVariant: attempt.passed ? 'secondary' : 'destructive'
+            })
+          })
+        
+        // Sort all activities by timestamp and take latest 5
+        const recentActivities = activities
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 5)
+        
+        setRecent(recentActivities)
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchData()
   }, [])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <AdminSidebar />
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="text-center py-12">
+            <p>Loading dashboard...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <AdminSidebar />
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="text-center py-12">
+            <p>Please log in as admin to view this dashboard.</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -105,38 +228,36 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest quiz attempts</CardDescription>
+            <CardDescription>Latest activities in the system</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {recent.length > 0 ? (
-                recent.map((a, i) => (
+                recent.map((activity, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg"
                   >
-                    <div className={`p-2 rounded-full ${a.passed ? "bg-green-100" : "bg-red-100"}`}>
-                      {a.passed ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                      )}
+                    <div className={`p-2 rounded-full ${activity.color}`}>
+                      {activity.icon}
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">
-                        {a.user?.email} {a.passed ? "passed" : "failed"} "{a.quiz?.title}"
+                        {activity.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Score: {a.score}
+                        {activity.description} • {new Date(activity.timestamp).toLocaleDateString()} {new Date(activity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </p>
                     </div>
-                    <Badge variant={a.passed ? "secondary" : "destructive"}>
-                      {a.passed ? "Pass" : "Fail"}
-                    </Badge>
+                    {activity.badge && (
+                      <Badge variant={activity.badgeVariant}>
+                        {activity.badge}
+                      </Badge>
+                    )}
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-sm">No attempts yet.</p>
+                <p className="text-muted-foreground text-sm">No recent activities.</p>
               )}
             </div>
           </CardContent>

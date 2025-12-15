@@ -1,44 +1,72 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { cookies } from "next/headers"
 
-export async function GET() {
-  const attempts = await prisma.attempt.findMany({
-    include: { user: true, quiz: true },
-    orderBy: { id: "desc" }
-  });
-  return NextResponse.json(attempts);
-}
+// GET /api/attempts/[id] - Get a specific attempt with quiz + user details
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const attemptId = Number(params.id)
+    if (Number.isNaN(attemptId)) {
+      return NextResponse.json({ error: "Invalid attempt ID" }, { status: 400 })
+    }
 
+    // Check authentication
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get('session')?.value
 
-export async function POST(req: Request) {
-  const { userId, quizId, answers } = await req.json();
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
 
-  if (!userId || !quizId || !answers || typeof answers !== "object") {
-    return NextResponse.json({ error: "userId, quizId, answers{} required" }, { status: 400 });
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { user: true },
+    })
+
+    if (!session) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        quiz: {
+          include: {
+            questions: true,
+          },
+        },
+        user: true,
+      },
+    })
+
+    if (!attempt) {
+      return NextResponse.json({ error: "Attempt not found" }, { status: 404 })
+    }
+
+    // Check if user is authorized (owner or admin)
+    if (session.user.role !== 'ADMIN' && attempt.userId !== session.user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    // Parse JSON fields for questions
+    const parsedAttempt = {
+      ...attempt,
+      quiz: {
+        ...attempt.quiz,
+        questions: attempt.quiz.questions.map((q: any) => ({
+          ...q,
+          options: JSON.parse(q.options as string),
+          correctAnswers: JSON.parse(q.correctAnswers as string),
+        })),
+      },
+    }
+
+    return NextResponse.json(parsedAttempt)
+  } catch (error) {
+    console.error("Error fetching attempt:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  const quiz = await prisma.quiz.findUnique({
-    where: { id: Number(quizId) },
-    include: { questions: true },
-  });
-
-  if (!quiz) {
-    return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
-  }
-
-  let score = 0;
-  quiz.questions.forEach((q) => {
-    const userAns = answers[q.id];
-    if (typeof userAns === "string" && userAns === q.answer) score++;
-  });
-
-  const passed = quiz.questions.length > 0
-    ? (score / quiz.questions.length) * 100 >= quiz.passMark
-    : false;
-
-  const attempt = await prisma.attempt.create({
-    data: { userId: Number(userId), quizId: Number(quizId), score, passed },
-  });
-
-  return NextResponse.json(attempt, { status: 201 });
 }

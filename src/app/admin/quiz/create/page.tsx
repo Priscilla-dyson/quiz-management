@@ -107,45 +107,81 @@ export default function CreateQuiz() {
     alert("Draft saved locally (not in DB)")
   }
 
-  // --- Publish Quiz to backend ---
+  // --- Publish Quiz ---
   const handlePublishQuiz = async () => {
+    // Validation
+    if (!quizData.title.trim()) {
+      alert("Please enter a quiz title")
+      return
+    }
+
+    if (!quizData.description.trim()) {
+      alert("Please enter a quiz description")
+      return
+    }
+
+    if (quizData.questions.length === 0) {
+      alert("Please add at least one question")
+      return
+    }
+
+    // Check each question
+    for (let i = 0; i < quizData.questions.length; i++) {
+      const question = quizData.questions[i]
+      
+      if (!question.question.trim()) {
+        alert(`Question ${i + 1}: Please enter question text`)
+        return
+      }
+
+      if (question.options.some(opt => !opt.trim())) {
+        alert(`Question ${i + 1}: Please fill in all answer options`)
+        return
+      }
+
+      if (question.correctAnswers.length === 0) {
+        alert(`Question ${i + 1}: Please select at least one correct answer`)
+        return
+      }
+    }
+
     try {
       setLoading(true)
 
-      // 1. Create Quiz
-      const quizRes = await fetch("/api/quizzes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: quizData.title,
-          description: quizData.description,
-          passMark: quizData.passingCriteria,
-          creatorId: 1, // TODO: replace with logged-in admin ID when auth is ready
-        }),
+      // Transform quiz data to API format
+      const apiData = {
+        title: quizData.title,
+        description: quizData.description,
+        passingCriteria: quizData.passingCriteria,
+        questions: quizData.questions.map(q => ({
+          type: q.type,
+          text: q.question,
+          options: q.options,
+          correctAnswers: q.correctAnswers
+        }))
+      }
+
+      const response = await fetch('/api/quizzes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
       })
 
-      if (!quizRes.ok) throw new Error("Failed to create quiz")
-      const quiz = await quizRes.json()
-
-      // 2. Create Questions for the quiz
-      for (const q of quizData.questions) {
-        await fetch("/api/questions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: q.question,
-            options: q.options,
-            answer: q.correctAnswers.map((idx) => q.options[idx]).join(","), // save answers as string
-            quizId: quiz.id,
-          }),
-        })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create quiz')
       }
+
+      const createdQuiz = await response.json()
+      console.log("Quiz created successfully:", createdQuiz)
 
       alert("Quiz published successfully!")
       setQuizData({ title: "", description: "", passingCriteria: 70, questions: [] })
     } catch (err) {
       console.error(err)
-      alert("Error publishing quiz. Check console for details.")
+      alert("Error publishing quiz: " + (err instanceof Error ? err.message : "Unknown error"))
     } finally {
       setLoading(false)
     }
@@ -282,15 +318,21 @@ export default function CreateQuiz() {
 
                         {/* Options */}
                         <div className="space-y-2">
-                          <Label>Answer Options</Label>
+                          <Label className="flex items-center gap-2">
+                            Answer Options
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              {question.type === "multiple-choice" ? "Check correct answers" : "Select correct answer"}
+                            </span>
+                          </Label>
                           <div className="space-y-3">
                             {question.options.map((option, optionIndex) => (
-                              <div key={optionIndex} className="flex items-center gap-3">
+                              <div key={optionIndex} className={`flex items-center gap-3 p-2 rounded border ${question.correctAnswers.includes(optionIndex) ? "bg-green-50 border-green-300" : ""}`}>
                                 <div className="flex items-center space-x-2">
                                   {question.type === "multiple-choice" ? (
                                     <Checkbox
                                       checked={question.correctAnswers.includes(optionIndex)}
                                       onCheckedChange={() => toggleCorrectAnswer(question.id, optionIndex)}
+                                      className="w-5 h-5 border-2 border-black data-[state=checked]:bg-black data-[state=checked]:text-white"
                                     />
                                   ) : (
                                     <RadioGroup
@@ -299,7 +341,7 @@ export default function CreateQuiz() {
                                         toggleCorrectAnswer(question.id, Number.parseInt(value))
                                       }
                                     >
-                                      <RadioGroupItem value={optionIndex.toString()} />
+                                      <RadioGroupItem value={optionIndex.toString()} id={`tf-${question.id}-${optionIndex}`} className="w-5 h-5 border-2 border-black data-[state=checked]:bg-black data-[state=checked]:text-white" />
                                     </RadioGroup>
                                   )}
                                 </div>

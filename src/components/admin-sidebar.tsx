@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, BookOpen, Settings, BarChart3, Users, Plus, LogOut, Menu } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 
 const navigation = [
   {
@@ -38,7 +39,14 @@ const navigation = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { logout } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  const handleLogout = async () => {
+    await logout()
+    router.push('/')
+  }
 
   return (
     <>
@@ -97,14 +105,12 @@ export function AdminSidebar() {
           {/* Logout */}
           <div className="p-4 border-t border-sidebar-border">
             <Button
-              asChild
               variant="ghost"
               className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
+              onClick={handleLogout}
             >
-              <Link href="/">
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Link>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </Button>
           </div>
         </div>

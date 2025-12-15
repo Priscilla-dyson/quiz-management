@@ -15,6 +15,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -91,10 +92,14 @@ export default function ManageQuizzes() {
   // Delete quiz (API call)
   const handleDeleteQuiz = async (quizId: number) => {
     try {
-      await fetch(`/api/quizzes/${quizId}`, { method: "DELETE" })
+      const response = await fetch(`/api/quizzes/${quizId}`, { method: "DELETE" })
+      if (!response.ok) {
+        throw new Error("Failed to delete quiz")
+      }
       setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizId))
     } catch (err) {
       console.error("Failed to delete quiz:", err)
+      alert("Failed to delete quiz. Please try again.")
     }
   }
 
@@ -228,63 +233,37 @@ export default function ManageQuizzes() {
                           <TableCell>{quiz.attempts.length > 0 ? `${avgScore}%` : "N/A"}</TableCell>
                           <TableCell>{new Date(quiz.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin/quiz/${quiz.id}/preview`}>
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Preview
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin/quiz/${quiz.id}/edit`}>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Edit
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin/quiz/${quiz.id}/results`}>
-                                    <BarChart3 className="mr-2 h-4 w-4" />
-                                    View Results
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem
-                                      onSelect={(e) => e.preventDefault()}
-                                      className="text-destructive focus:text-destructive"
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/admin/quiz/${quiz.id}/edit`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      {`Are you sure you want to delete "${quiz.title}"? This action cannot be undone.`}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteQuiz(quiz.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        {`Are you sure you want to delete "${quiz.title}"? This action cannot be undone.`}
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeleteQuiz(quiz.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Delete Quiz
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                      Delete Quiz
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </TableCell>
                         </TableRow>
                       )
