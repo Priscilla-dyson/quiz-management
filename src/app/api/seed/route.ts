@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 async function seedDatabase() {
-  let prisma: PrismaClient
+  let prisma: PrismaClient | undefined = undefined
   
   try {
     // Create new Prisma client instance
