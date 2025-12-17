@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 export async function POST() {
@@ -11,10 +11,22 @@ export async function GET() {
 }
 
 async function seedDatabase() {
+  let prisma: PrismaClient
+  
   try {
+    // Create new Prisma client instance
+    prisma = new PrismaClient({
+      log: ["error", "warn"],
+    })
+
+    // Test database connection
+    await prisma.$connect()
+    console.log('Database connected successfully')
+
     const adminPasswordHash = await bcrypt.hash('admin123', 10)
     const studentPasswordHash = await bcrypt.hash('student123', 10)
 
+    console.log('Creating admin user...')
     await prisma.user.upsert({
       where: { email: 'admin@example.com' },
       update: {},
@@ -26,6 +38,7 @@ async function seedDatabase() {
       },
     })
 
+    console.log('Creating student user...')
     await prisma.user.upsert({
       where: { email: 'student@example.com' },
       update: {},
@@ -37,6 +50,7 @@ async function seedDatabase() {
       },
     })
 
+    console.log('Database seeded successfully')
     return NextResponse.json({ 
       message: 'Database seeded successfully',
       users: [
@@ -45,7 +59,14 @@ async function seedDatabase() {
       ]
     })
   } catch (error) {
-    console.error('Seed error:', error)
-    return NextResponse.json({ error: 'Failed to seed database' }, { status: 500 })
+    console.error('Seed error details:', error)
+    return NextResponse.json({ 
+      error: 'Failed to seed database', 
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  } finally {
+    if (prisma) {
+      await prisma.$disconnect()
+    }
   }
 }
