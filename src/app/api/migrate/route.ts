@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 
-export async function POST() {
+export async function GET() {
   let prisma: PrismaClient | undefined = undefined
   
   try {
@@ -9,9 +9,6 @@ export async function POST() {
     
     // Run database migration/creation
     await prisma.$connect()
-    
-    // Create tables using Prisma migrate (simplified version)
-    // Since we can't run prisma migrate deploy easily, we'll create the tables manually
     
     // Create User table
     await prisma.$executeRaw`
@@ -98,4 +95,8 @@ export async function POST() {
       await prisma.$disconnect()
     }
   }
+}
+
+export async function POST() {
+  return await GET()
 }
