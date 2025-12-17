@@ -14,9 +14,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userRecord = await prisma.user.findUnique({
+    let userRecord = await prisma.user.findUnique({
       where: { email },
     })
+
+    // Auto-create demo users if they don't exist
+    if (!userRecord && (email === 'admin@example.com' || email === 'student@example.com')) {
+      const role = email === 'admin@example.com' ? 'ADMIN' : 'STUDENT'
+      const name = email === 'admin@example.com' ? 'Admin User' : 'Student User'
+      
+      // Only accept demo passwords
+      if ((email === 'admin@example.com' && password === 'admin123') ||
+          (email === 'student@example.com' && password === 'student123')) {
+        const passwordHash = await bcrypt.hash(password, 10)
+        
+        userRecord = await prisma.user.create({
+          data: {
+            email,
+            name,
+            passwordHash,
+            role,
+          },
+        })
+      }
+    }
 
     if (!userRecord) {
       return NextResponse.json(
