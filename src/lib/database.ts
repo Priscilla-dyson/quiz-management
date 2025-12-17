@@ -10,7 +10,7 @@ class Database {
       id: 1,
       email: 'admin@example.com',
       name: 'Admin User',
-      role: 'admin',
+      role: 'ADMIN',
       password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJXxhLn3tFyGzUe', // "admin123"
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z'
@@ -19,7 +19,7 @@ class Database {
       id: 2,
       email: 'student@example.com',
       name: 'Student User',
-      role: 'student',
+      role: 'STUDENT',
       password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJXxhLn3tFyGzUe', // "student123"
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z'
@@ -131,7 +131,7 @@ class Database {
     return this.users.find(user => user.email === email)
   }
 
-  async createUser(email: string, name: string, password: string, role: 'admin' | 'student'): Promise<User> {
+  async createUser(email: string, name: string, password: string, role: 'ADMIN' | 'STUDENT'): Promise<User> {
     const hashedPassword = await bcrypt.hash(password, 10)
     const user: User = {
       id: Math.max(...this.users.map(u => u.id), 0) + 1,
@@ -301,7 +301,7 @@ class Database {
     }
 
     this.attempts.push(attempt)
-    return this.getAttemptById(attempt.id)!
+    return attempt
   }
 }
 

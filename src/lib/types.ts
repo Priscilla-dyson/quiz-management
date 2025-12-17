@@ -4,7 +4,7 @@ export interface User {
   id: number
   email: string
   name: string
-  role: 'admin' | 'student'
+  role: 'ADMIN' | 'STUDENT'
   password: string // hashed password
   createdAt: string
   updatedAt: string
