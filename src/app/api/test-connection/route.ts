@@ -20,7 +20,7 @@ export async function GET() {
     console.error('Database test failed:', error)
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   } finally {
     await prisma.$disconnect()
