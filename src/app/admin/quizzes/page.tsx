@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Search, Plus, Edit, Trash2, BarChart3, Eye, MoreHorizontal, Filter, ArrowUpDown } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +47,7 @@ export default function ManageQuizzes() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("dateCreated")
+  const { toast } = useToast()
 
   // Fetch quizzes from API
   useEffect(() => {
@@ -97,9 +99,17 @@ export default function ManageQuizzes() {
         throw new Error("Failed to delete quiz")
       }
       setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizId))
+      toast({
+        title: "Quiz Deleted",
+        description: "Quiz has been successfully deleted.",
+      })
     } catch (err) {
       console.error("Failed to delete quiz:", err)
-      alert("Failed to delete quiz. Please try again.")
+      toast({
+        title: "Deletion Failed",
+        description: "Failed to delete quiz. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 

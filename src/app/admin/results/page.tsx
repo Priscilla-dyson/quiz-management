@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Search, Download, Filter, TrendingUp, Users, BookOpen, BarChart3 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface StudentAttempt {
   id: string
@@ -30,6 +31,7 @@ export default function AdminResults() {
   const [searchTerm, setSearchTerm] = useState("")
   const [quizFilter, setQuizFilter] = useState<string>("all")
   const [resultFilter, setResultFilter] = useState<string>("all")
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchAttempts = async () => {
@@ -96,7 +98,10 @@ export default function AdminResults() {
 
   const exportResults = () => {
     console.log("Exporting results:", filteredAttempts)
-    alert("Results exported successfully! (TODO: implement CSV/Excel export)")
+    toast({
+      title: "Export Started",
+      description: "Results exported successfully! (CSV/Excel export coming soon)",
+    })
   }
 
   return (

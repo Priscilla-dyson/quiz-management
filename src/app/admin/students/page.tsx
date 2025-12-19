@@ -8,7 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreHorizontal, Mail, Phone, Calendar, TrendingUp, Users, BookOpen, Award } from "lucide-react"
+import { Search, MoreHorizontal, Mail, Phone, Calendar, TrendingUp, Users, BookOpen, Award, Plus } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 interface Student {
   id: string
@@ -26,6 +37,10 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [newStudent, setNewStudent] = useState({ name: "", email: "", password: "" })
+  const [isCreating, setIsCreating] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -48,6 +63,94 @@ export default function StudentsPage() {
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handleCreateStudent = async () => {
+    // Validation
+    if (!newStudent.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter student name",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!newStudent.email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter student email",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!newStudent.password.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a password",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (newStudent.password.length < 6) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsCreating(true)
+
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newStudent.name,
+          email: newStudent.email,
+          password: newStudent.password,
+          role: "STUDENT",
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create student")
+      }
+
+      const createdStudent = await response.json()
+      
+      // Refresh students list
+      const res = await fetch("/api/students")
+      if (res.ok) {
+        const data = await res.json()
+        setStudents(data)
+      }
+
+      // Reset form and close dialog
+      setNewStudent({ name: "", email: "", password: "" })
+      setIsAddDialogOpen(false)
+
+      toast({
+        title: "Student Created Successfully!",
+        description: `${newStudent.name} has been added as a student.`,
+      })
+    } catch (err) {
+      console.error("Failed to create student:", err)
+      toast({
+        title: "Creation Failed",
+        description: err instanceof Error ? err.message : "Unknown error occurred",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -137,6 +240,65 @@ export default function StudentsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Student
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Student</DialogTitle>
+                  <DialogDescription>
+                    Create a new student account. They will be able to log in with the credentials you provide.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      placeholder="Enter student's full name"
+                      value={newStudent.name}
+                      onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="student@example.com"
+                      value={newStudent.email}
+                      onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Password *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter password (min 6 characters)"
+                      value={newStudent.password}
+                      onChange={(e) => setNewStudent({ ...newStudent, password: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                    disabled={isCreating}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateStudent} disabled={isCreating}>
+                    {isCreating ? "Creating..." : "Create Student"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Students Table */}
