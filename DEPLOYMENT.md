@@ -4,14 +4,25 @@
 
 Since SQLite doesn't work on Vercel's serverless environment, you need to set up a PostgreSQL database:
 
-### Option 1: Vercel Postgres (Recommended)
+### Option 1: Vercel Marketplace - Neon (Recommended)
 1. Go to your Vercel project dashboard
-2. Go to "Storage" tab
-3. Click "Create Database" → "Postgres"
-4. Once created, go to Database Settings → ".env.local"
-5. Copy the `DATABASE_URL` value
+2. Go to "Storage" tab or "Marketplace"
+3. Select "Neon" from the database providers
+4. Click "Add" or "Install"
+5. Follow the setup prompts to create a PostgreSQL database
+6. Once created, go to the database settings
+7. Copy the `DATABASE_URL` connection string
 
-### Option 2: Supabase
+### Option 2: Vercel Marketplace - Supabase
+1. Go to your Vercel project dashboard
+2. Go to "Storage" tab or "Marketplace"
+3. Select "Supabase" from the database providers
+4. Click "Add" or "Install"
+5. Create a new Supabase project
+6. Go to Settings → Database → Connection string
+7. Copy the URI and use it as `DATABASE_URL`
+
+### Option 3: Direct Supabase Setup
 1. Create a free account at [supabase.com](https://supabase.com)
 2. Create a new project
 3. Go to Settings → Database → Connection string
