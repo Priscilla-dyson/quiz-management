@@ -97,11 +97,58 @@ export default function AdminResults() {
   }
 
   const exportResults = () => {
-    console.log("Exporting results:", filteredAttempts)
-    toast({
-      title: "Export Started",
-      description: "Results exported successfully! (CSV/Excel export coming soon)",
-    })
+    if (filteredAttempts.length === 0) {
+      toast({
+        title: "No Data to Export",
+        description: "There are no results to export with the current filters.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      // Create CSV content
+      const headers = ["Student Name", "Student Email", "Quiz Title", "Score", "Result", "Questions Correct", "Total Questions", "Duration (min)", "Date"]
+      const csvContent = [
+        headers.join(","),
+        ...filteredAttempts.map(attempt => [
+          `"${attempt.studentName}"`,
+          `"${attempt.studentEmail}"`,
+          `"${attempt.quizTitle}"`,
+          attempt.score,
+          attempt.result,
+          attempt.questionsCorrect,
+          attempt.totalQuestions,
+          attempt.duration,
+          `"${new Date(attempt.date).toLocaleDateString()}"`
+        ].join(","))
+      ].join("\n")
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+      const link = document.createElement("a")
+      const url = URL.createObjectURL(blob)
+      
+      link.setAttribute("href", url)
+      link.setAttribute("download", `quiz-results-${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = "hidden"
+      
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast({
+        title: "Export Successful",
+        description: `Exported ${filteredAttempts.length} results to CSV file.`,
+      })
+    } catch (err) {
+      console.error("Export failed:", err)
+      toast({
+        title: "Export Failed",
+        description: "Failed to export results. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
