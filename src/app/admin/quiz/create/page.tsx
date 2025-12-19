@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Plus, Trash2, Save, Eye, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 
 type QuestionType = "multiple-choice" | "true-false"
 
@@ -38,6 +39,7 @@ export default function CreateQuiz() {
     questions: [],
   })
   const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -104,24 +106,39 @@ export default function CreateQuiz() {
   // --- Save Draft (no API, just console) ---
   const handleSaveQuiz = () => {
     console.log("Draft quiz:", quizData)
-    alert("Draft saved locally (not in DB)")
+    toast({
+      title: "Draft Saved",
+      description: "Quiz draft saved locally (not in database)",
+    })
   }
 
   // --- Publish Quiz ---
   const handlePublishQuiz = async () => {
     // Validation
     if (!quizData.title.trim()) {
-      alert("Please enter a quiz title")
+      toast({
+        title: "Validation Error",
+        description: "Please enter a quiz title",
+        variant: "destructive",
+      })
       return
     }
 
     if (!quizData.description.trim()) {
-      alert("Please enter a quiz description")
+      toast({
+        title: "Validation Error",
+        description: "Please enter a quiz description",
+        variant: "destructive",
+      })
       return
     }
 
     if (quizData.questions.length === 0) {
-      alert("Please add at least one question")
+      toast({
+        title: "Validation Error",
+        description: "Please add at least one question",
+        variant: "destructive",
+      })
       return
     }
 
@@ -130,17 +147,29 @@ export default function CreateQuiz() {
       const question = quizData.questions[i]
       
       if (!question.question.trim()) {
-        alert(`Question ${i + 1}: Please enter question text`)
+        toast({
+          title: "Validation Error",
+          description: `Question ${i + 1}: Please enter question text`,
+          variant: "destructive",
+        })
         return
       }
 
       if (question.options.some(opt => !opt.trim())) {
-        alert(`Question ${i + 1}: Please fill in all answer options`)
+        toast({
+          title: "Validation Error",
+          description: `Question ${i + 1}: Please fill in all answer options`,
+          variant: "destructive",
+        })
         return
       }
 
       if (question.correctAnswers.length === 0) {
-        alert(`Question ${i + 1}: Please select at least one correct answer`)
+        toast({
+          title: "Validation Error",
+          description: `Question ${i + 1}: Please select at least one correct answer`,
+          variant: "destructive",
+        })
         return
       }
     }
@@ -177,11 +206,18 @@ export default function CreateQuiz() {
       const createdQuiz = await response.json()
       console.log("Quiz created successfully:", createdQuiz)
 
-      alert("Quiz published successfully!")
+      toast({
+        title: "Quiz Published Successfully!",
+        description: "Your quiz has been created and is now available to students.",
+      })
       setQuizData({ title: "", description: "", passingCriteria: 70, questions: [] })
     } catch (err) {
       console.error(err)
-      alert("Error publishing quiz: " + (err instanceof Error ? err.message : "Unknown error"))
+      toast({
+        title: "Error Publishing Quiz",
+        description: err instanceof Error ? err.message : "Unknown error occurred",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
