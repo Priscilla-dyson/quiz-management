@@ -38,7 +38,7 @@ export async function GET() {
 
       return {
         id: String(u.id),
-        name: u.email.split("@")[0],
+        name: u.name,
         email: u.email,
         phone: undefined,
         joinDate: u.createdAt,
