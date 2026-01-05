@@ -4,8 +4,11 @@ import { CreateQuizRequest } from '@/lib/types'
 import { cookies } from 'next/headers'
 
 // GET /api/quizzes - Get all quizzes (with questions + attempts)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId')
+    
     const cookieStore = await cookies()
     const sessionId = cookieStore.get('session')?.value
 
@@ -22,18 +25,51 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
+    const isAdmin = session.user.role === 'ADMIN'
+    const currentUserId = session.user.id
+
+    // Get all quizzes with questions
     const quizzes = await prisma.quiz.findMany({
       include: {
         questions: true,
-        attempts: session.user.role === 'ADMIN' ? {
+        attempts: isAdmin ? {
           include: { user: true }
         } : false,
+        _count: {
+          select: {
+            attempts: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
     })
 
+    // For each quiz, get the current user's attempts if userId is provided
+    const quizzesWithUserAttempts = await Promise.all(
+      quizzes.map(async (quiz) => {
+        let userAttempts: any[] = []
+        
+        if (userId) {
+          userAttempts = await prisma.attempt.findMany({
+            where: {
+              quizId: quiz.id,
+              userId: currentUserId
+            },
+            select: { id: true }
+          })
+        }
+
+        return {
+          ...quiz,
+          userAttempts,
+          attempts: quiz.attempts || [],
+          _count: undefined // Remove the _count field as we'll use the arrays directly
+        }
+      })
+    )
+
     // Parse JSON fields for questions
-    const quizzesWithParsedQuestions = quizzes.map((quiz: any) => ({
+    const quizzesWithParsedQuestions = quizzesWithUserAttempts.map((quiz: any) => ({
       ...quiz,
       questions: quiz.questions.map((q: any) => ({
         ...q,

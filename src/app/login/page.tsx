@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Lock, Mail } from 'lucide-react'
+import { Loader2, Lock, Mail, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { toast } from '@/components/ui/use-toast'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -37,12 +38,31 @@ export default function LoginPage() {
     try {
       const success = await login(email, password)
       if (success) {
+        toast({
+          title: 'Login successful!',
+          description: 'Redirecting to your dashboard...',
+          className: 'bg-green-50 border-green-200 text-green-800',
+          icon: <CheckCircle className="h-5 w-5 text-green-600" />,
+        })
         // Redirect will happen in useEffect
       } else {
         setError('Invalid email or password')
+        toast({
+          title: 'Login failed',
+          description: 'Invalid email or password',
+          variant: 'destructive',
+          icon: <AlertCircle className="h-5 w-5" />,
+        })
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
       setError('Login failed. Please try again.')
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+        icon: <AlertCircle className="h-5 w-5" />,
+      })
     } finally {
       setLoading(false)
     }
@@ -93,8 +113,9 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="ml-2">{error}</AlertDescription>
               </Alert>
             )}
 

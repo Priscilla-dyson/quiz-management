@@ -18,27 +18,36 @@ interface Quiz {
   updatedAt: string
   questions: { id: number; text: string }[]
   attempts?: { id: number }[]
+  userAttempts?: { id: number }[]
 }
 
 export default function StudentQuizzesPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [userId, setUserId] = useState<number | null>(null)
 
   useEffect(() => {
-    const fetchQuizzes = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/quizzes")
-        if (!res.ok) throw new Error("Failed to fetch quizzes")
-        const data = await res.json()
-        setQuizzes(data)
+        // Fetch user data to get userId
+        const userRes = await fetch('/api/auth/session')
+        if (!userRes.ok) throw new Error("Failed to fetch user data")
+        const userData = await userRes.json()
+        setUserId(userData.user?.id || null)
+
+        // Fetch quizzes with user's attempts
+        const quizRes = await fetch(`/api/quizzes?userId=${userData.user?.id || ''}`)
+        if (!quizRes.ok) throw new Error("Failed to fetch quizzes")
+        const quizData = await quizRes.json()
+        setQuizzes(quizData)
       } catch (err) {
-        console.error("Error fetching quizzes:", err)
+        console.error("Error fetching data:", err)
       } finally {
         setLoading(false)
       }
     }
-    fetchQuizzes()
+    fetchData()
   }, [])
 
   const filteredQuizzes = quizzes.filter((quiz) =>
@@ -52,13 +61,13 @@ export default function StudentQuizzesPage() {
       <main className="flex-1 overflow-auto">
         <div className="p-6 lg:p-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Available Quizzes</h1>
-            <p className="text-muted-foreground">Explore and take quizzes to test your knowledge and skills</p>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-foreground mb-1">Quiz Dashboard</h1>
+            <p className="text-muted-foreground">Select a quiz to begin or continue your learning journey</p>
           </div>
 
           {/* Search */}
-          <div className="mb-8">
+          <div className="mb-6">
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -78,7 +87,7 @@ export default function StudentQuizzesPage() {
               <p className="text-muted-foreground">No quizzes found.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredQuizzes.map((quiz) => (
                 <Card key={quiz.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
@@ -90,26 +99,45 @@ export default function StudentQuizzesPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {/* Stats */}
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span>{quiz.questions?.length || 0} questions</span>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between items-center p-2 bg-muted/20 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-primary" />
+                            <span>{quiz.questions?.length || 0} Questions</span>
+                          </div>
+                          <div className="h-4 w-px bg-border mx-2"></div>
+                          <div className="text-primary font-medium">
+                            Pass: {quiz.passingCriteria}%
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{quiz.attempts?.length || 0} attempts</span>
-                        </div>
-                        <div className="text-sm col-span-2">
-                          <span className="text-muted-foreground">Passing Score: </span>
-                          <span className="font-medium">{quiz.passingCriteria}%</span>
-                        </div>
+                        
+                        {userId && (
+                          <div className="flex items-center justify-between p-2 bg-muted/10 rounded-md">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-amber-500" />
+                              <span>Your Attempts:</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-semibold text-amber-600">
+                                {quiz.userAttempts?.length || 0}
+                              </span>
+                              <span className="text-muted-foreground text-xs">
+                                / {quiz.attempts?.length || 0} total
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Start Button */}
-                      <Button className="w-full" asChild>
+                      <Button 
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 transition-all" 
+                        size="lg"
+                        asChild
+                      >
                         <Link href={`/student/quiz/${quiz.id}`}>
                           <Play className="h-4 w-4 mr-2" />
-                          Start Quiz
+                          {quiz.userAttempts?.length ? 'Retake Quiz' : 'Start Quiz'}
                         </Link>
                       </Button>
                     </div>
